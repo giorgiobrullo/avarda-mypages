@@ -61,7 +61,7 @@ export class AvardaMyPagesError extends Error {
   }
 }
 
-/** Portable base64url decode — works in browsers and Node (16+) without Buffer. */
+/** Portable base64url decode that works in browsers and Node (16+) without Buffer. */
 function base64UrlDecode(input: string): string {
   const b64 = input.replace(/-/g, '+').replace(/_/g, '/');
   const g = globalThis as { atob?: (s: string) => string; Buffer?: { from(s: string, e: string): { toString(e: string): string } } };
@@ -139,7 +139,7 @@ export class AvardaMyPages {
       Referer: this.origin.endsWith('/') ? this.origin : `${this.origin}/`,
     };
     if (auth) {
-      if (!this.session) throw new Error('Not authenticated — call login() first.');
+      if (!this.session) throw new Error('Not authenticated. Call login() first.');
       h.Authorization = `Bearer ${this.session.accessToken}`;
     }
     return h;
@@ -189,7 +189,7 @@ export class AvardaMyPages {
 
   /**
    * Step 1 of login. Returns a `sessionId` and, as a side effect, causes the
-   * bank to text an OTP to the account's phone. Rarely called directly — use
+   * bank to text an OTP to the account's phone. Rarely called directly; use
    * {@link login}. Note: Avarda rate-limits SMS after several attempts.
    */
   async validate(email: string, password: string): Promise<{ sessionId: string }> {
@@ -232,7 +232,7 @@ export class AvardaMyPages {
 
   // ---- Card data ---------------------------------------------------------
 
-  /** Accounts/cards and their credit limits — the source of `accountId`. */
+  /** Accounts/cards and their credit limits. Source of `accountId`. */
   async getCreditLimits<T = unknown>(): Promise<T> {
     return this.request<T>(this.cardBaseUrl, '/api/v1/CreditLimit/GetCreditLimits', { auth: true });
   }
@@ -256,7 +256,7 @@ export class AvardaMyPages {
     });
   }
 
-  /** Invoices (fatture) — the historical statement list. */
+  /** Invoices (fatture): the historical statement list. */
   async getInvoices<T = unknown>(): Promise<T> {
     return this.request<T>(this.cardBaseUrl, '/api/v1/invoices', { auth: true });
   }

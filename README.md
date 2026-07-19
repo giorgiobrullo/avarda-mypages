@@ -1,6 +1,6 @@
 # avarda-mypages
 
-A TypeScript client for the Avarda MyPages API — the platform behind the online
+A TypeScript client for the Avarda MyPages API, the platform behind the online
 customer areas of several banks, including TF Bank Italy (`areacliente.tfbank.it`).
 
 It talks to the same JSON API the web app uses, so there is no browser or
@@ -9,8 +9,6 @@ the code through a `getOtp` callback; how you obtain it (a webhook, a prompt, an
 inbox) is up to you.
 
 ## Install
-
-It isn't on npm — install it straight from GitHub.
 
 ```bash
 npm install github:giorgiobrullo/avarda-mypages
@@ -36,7 +34,7 @@ npm install github:giorgiobrullo/avarda-mypages#v0.1.0
 npm install github:giorgiobrullo/avarda-mypages#<commit-sha>
 ```
 
-The package compiles itself on install — a `prepare` step runs `tsc` and writes
+The package compiles itself on install: a `prepare` step runs `tsc` and writes
 `dist/`, so the import is ready to use. Needs Node 18+ for the global `fetch`, or
 pass your own via `fetchImpl`. It also runs in the browser, subject to CORS.
 
@@ -97,7 +95,7 @@ const client = new AvardaMyPages({
 | `getSession()` / `accessToken` / `isTokenValid()` | Session inspection. |
 
 Data methods are generic, e.g. `getTransactions<MyType>(id)`. The response
-shapes are stable per bank but not typed by this library — declare your own
+shapes are stable per bank but not typed by this library, so declare your own
 against what your account returns.
 
 Failed requests throw `AvardaMyPagesError`, which carries `.status` and `.body`.
