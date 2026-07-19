@@ -10,12 +10,35 @@ inbox) is up to you.
 
 ## Install
 
+It isn't on npm — install it straight from GitHub.
+
 ```bash
 npm install github:giorgiobrullo/avarda-mypages
+# or
+yarn add github:giorgiobrullo/avarda-mypages
+pnpm add github:giorgiobrullo/avarda-mypages
 ```
 
-Needs Node 18+ for the global `fetch`, or pass your own via `fetchImpl`. It runs
-in the browser too, subject to CORS.
+Or add it to `package.json` and run your installer:
+
+```json
+{
+  "dependencies": {
+    "avarda-mypages": "github:giorgiobrullo/avarda-mypages"
+  }
+}
+```
+
+Pin to a tag or commit for reproducible builds:
+
+```bash
+npm install github:giorgiobrullo/avarda-mypages#v0.1.0
+npm install github:giorgiobrullo/avarda-mypages#<commit-sha>
+```
+
+The package compiles itself on install — a `prepare` step runs `tsc` and writes
+`dist/`, so the import is ready to use. Needs Node 18+ for the global `fetch`, or
+pass your own via `fetchImpl`. It also runs in the browser, subject to CORS.
 
 ## Usage
 
