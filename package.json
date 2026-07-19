@@ -1,0 +1,59 @@
+{
+  "name": "avarda-mypages",
+  "version": "0.1.0",
+  "description": "Typed client for the Avarda MyPages API (TF Bank Italy and other Avarda-serviced banks): password+SMS login, card transactions, and invoices.",
+  "author": "giorgiobrullo",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/giorgiobrullo/avarda-mypages.git"
+  },
+  "bugs": {
+    "url": "https://github.com/giorgiobrullo/avarda-mypages/issues"
+  },
+  "homepage": "https://github.com/giorgiobrullo/avarda-mypages#readme",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "keywords": [
+    "avarda",
+    "mypages",
+    "tfbank",
+    "tf-bank",
+    "banking",
+    "bank-sync",
+    "transactions",
+    "invoices"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
