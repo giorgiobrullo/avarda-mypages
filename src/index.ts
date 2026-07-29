@@ -49,6 +49,45 @@ export interface Session {
   claims: Record<string, unknown> | null;
 }
 
+/**
+ * Locale values the card API accepts. It is an enum, not a BCP-47 tag: passing
+ * `it-IT`, `it`, `en-US` or similar is rejected with
+ * `The value '...' is not valid for Locale.`
+ *
+ * The Italian site maps every language except Spanish onto `EnGB`, which only
+ * affects the language of server-rendered transaction text.
+ */
+export type AvardaLocale = 'EnGB' | 'EsES' | 'ItIT' | 'SvSE' | 'DeDE' | 'DeAT';
+
+export interface TransactionsParams {
+  /** From {@link AvardaMyPages.getCards}; not the login email. */
+  cornicheAccountId: string;
+  /** Inclusive start, `YYYY-MM-DD`. */
+  transactionDateFrom: string;
+  /** Inclusive end, `YYYY-MM-DD`. */
+  transactionDateTo: string;
+  /** Optional server-side filter on merchant. */
+  merchantName?: string;
+  /** Defaults to `EnGB`, which is what the Italian site sends. */
+  locale?: AvardaLocale;
+}
+
+/** A card as returned by `/api/v1/config`. */
+export interface CardConfigCard {
+  /** Addresses transactions. */
+  cornicheAccountId: string;
+  /** Addresses the card (overview, credit limits, PIN). */
+  cornicheCardPan: string;
+  state?: string;
+  debitBlock?: boolean;
+  [key: string]: unknown;
+}
+
+export interface CardConfig {
+  customer?: { cards?: CardConfigCard[]; [key: string]: unknown };
+  [key: string]: unknown;
+}
+
 /** Error carrying the HTTP status and parsed/raw body for diagnosis. */
 export class AvardaMyPagesError extends Error {
   constructor(
@@ -232,28 +271,80 @@ export class AvardaMyPages {
 
   // ---- Card data ---------------------------------------------------------
 
-  /** Accounts/cards and their credit limits. Source of `accountId`. */
-  async getCreditLimits<T = unknown>(): Promise<T> {
-    return this.request<T>(this.cardBaseUrl, '/api/v1/CreditLimit/GetCreditLimits', { auth: true });
+  /**
+   * Card configuration, and the only source of the card identifiers.
+   *
+   * `cornicheAccountId` addresses transactions and `cornicheCardPan` addresses
+   * the card itself. Nothing else exposes them: they are absent from the JWT
+   * claims, and the identity host's account endpoints return empty arrays for
+   * card-only customers.
+   */
+  async getConfig<T = CardConfig>(): Promise<T> {
+    return this.request<T>(this.cardBaseUrl, '/api/v1/config', { auth: true });
   }
 
-  /** Card overview (balance/limit) for an account. */
-  async getCardOverview<T = unknown>(accountId: string): Promise<T> {
-    return this.request<T>(this.cardBaseUrl, `/api/v3/CreditCard/overview/${encodeURIComponent(accountId)}`, {
-      auth: true,
-    });
+  /**
+   * The cards on this customer, straight out of {@link getConfig}. Convenience
+   * for the common case of "which ids do I pass to everything else".
+   */
+  async getCards(): Promise<CardConfigCard[]> {
+    const config = await this.getConfig();
+    return config?.customer?.cards ?? [];
   }
 
-  /** Recent card transactions for an account. */
-  async getTransactions<T = unknown>(accountId: string): Promise<T> {
-    return this.request<T>(this.cardBaseUrl, `/api/v3/transactions/${encodeURIComponent(accountId)}`, { auth: true });
+  /**
+   * Credit limit, balance and repayment details.
+   *
+   * `cornicheCardPan` scopes the response to one card; omitting it works for
+   * single-card customers.
+   */
+  async getCreditLimits<T = unknown>(cornicheCardPan?: string): Promise<T> {
+    const query = cornicheCardPan
+      ? `?cornicheCardPan=${encodeURIComponent(cornicheCardPan)}`
+      : '';
+    return this.request<T>(this.cardBaseUrl, `/api/v1/CreditLimit/GetCreditLimits${query}`, { auth: true });
   }
 
-  /** Detail for a single transaction. */
-  async getTransactionDetails<T = unknown>(transactionId: string): Promise<T> {
-    return this.request<T>(this.cardBaseUrl, `/api/v3/transactions/details/${encodeURIComponent(transactionId)}`, {
-      auth: true,
-    });
+  /**
+   * Card overview (balance/limit plus a few recent transactions).
+   *
+   * Keyed by `cornicheCardPan`, not by the account id.
+   */
+  async getCardOverview<T = unknown>(cornicheCardPan: string, numberOfTransactions = 3): Promise<T> {
+    return this.request<T>(
+      this.cardBaseUrl,
+      `/api/v3/CreditCard/overview/${encodeURIComponent(cornicheCardPan)}?numberOfTransactions=${numberOfTransactions}`,
+      { auth: true },
+    );
+  }
+
+  /**
+   * Card transactions for a date window.
+   *
+   * All three of `transactionDateFrom`, `transactionDateTo` and `locale` are
+   * required: the API answers 400 with a validation list if any is missing or
+   * malformed. `locale` is an enum ({@link AvardaLocale}), not a BCP-47 tag, so
+   * `it-IT` is rejected -- the Italian site itself sends `EnGB`.
+   */
+  async getTransactions<T = unknown>(params: TransactionsParams): Promise<T> {
+    const { cornicheAccountId, transactionDateFrom, transactionDateTo, merchantName, locale = 'EnGB' } = params;
+    const query = new URLSearchParams({ transactionDateFrom, transactionDateTo, locale });
+    if (merchantName) query.append('merchantName', merchantName);
+    return this.request<T>(
+      this.cardBaseUrl,
+      `/api/v3/transactions/${encodeURIComponent(cornicheAccountId)}?${query.toString()}`,
+      { auth: true },
+    );
+  }
+
+  /** Detail for a single transaction. `transactionType` comes off the list row. */
+  async getTransactionDetails<T = unknown>(transactionId: string, transactionType?: string): Promise<T> {
+    const query = transactionType ? `?TransactionType=${encodeURIComponent(transactionType)}` : '';
+    return this.request<T>(
+      this.cardBaseUrl,
+      `/api/v3/transactions/details/${encodeURIComponent(transactionId)}${query}`,
+      { auth: true },
+    );
   }
 
   /** Invoices (fatture): the historical statement list. */

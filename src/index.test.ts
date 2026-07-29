@@ -129,4 +129,88 @@ describe('AvardaMyPages', () => {
     await client.login({ email: 'e', password: 'p', getOtp: () => '000000' });
     expect(client.isTokenValid()).toBe(false);
   });
+
+  /** Log in and return [client, fetchImpl] with the two auth calls consumed. */
+  async function loggedIn(...responses: Response[]) {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(json({ sessionId: 's' }))
+      .mockResolvedValueOnce(json({ accessToken: jwt({ exp: nowSecs() + 300 }) }));
+    for (const response of responses) fetchImpl.mockResolvedValueOnce(response);
+    const client = new AvardaMyPages({ ...TF_BANK_ITALY, fetchImpl });
+    await client.login({ email: 'e', password: 'p', getOtp: () => '000000' });
+    return [client, fetchImpl] as const;
+  }
+
+  it('reads card ids from /api/v1/config', async () => {
+    const cards = [{ cornicheAccountId: 'acc-guid', cornicheCardPan: 'pan-guid', state: 'Active' }];
+    const [client, fetchImpl] = await loggedIn(json({ customer: { cards } }));
+
+    expect(await client.getCards()).toEqual(cards);
+    expect(fetchImpl.mock.calls[2][0]).toBe(
+      'https://cardmanagement.production.avarda.com/api/v1/config',
+    );
+  });
+
+  it('returns no cards when the config payload is empty', async () => {
+    const [client] = await loggedIn(json({}));
+    expect(await client.getCards()).toEqual([]);
+  });
+
+  it('sends the date window and an enum locale when fetching transactions', async () => {
+    const [client, fetchImpl] = await loggedIn(json({ transactions: [] }));
+
+    await client.getTransactions({
+      cornicheAccountId: 'acc-guid',
+      transactionDateFrom: '2026-01-01',
+      transactionDateTo: '2026-07-29',
+    });
+
+    const url = new URL(fetchImpl.mock.calls[2][0]);
+    expect(url.pathname).toBe('/api/v3/transactions/acc-guid');
+    expect(url.searchParams.get('transactionDateFrom')).toBe('2026-01-01');
+    expect(url.searchParams.get('transactionDateTo')).toBe('2026-07-29');
+    // `it-IT` is rejected by the API; the Italian site itself sends EnGB.
+    expect(url.searchParams.get('locale')).toBe('EnGB');
+    expect(url.searchParams.has('merchantName')).toBe(false);
+  });
+
+  it('appends merchantName only when given', async () => {
+    const [client, fetchImpl] = await loggedIn(json({ transactions: [] }));
+
+    await client.getTransactions({
+      cornicheAccountId: 'acc-guid',
+      transactionDateFrom: '2026-01-01',
+      transactionDateTo: '2026-07-29',
+      merchantName: 'Amazon',
+      locale: 'ItIT',
+    });
+
+    const url = new URL(fetchImpl.mock.calls[2][0]);
+    expect(url.searchParams.get('merchantName')).toBe('Amazon');
+    expect(url.searchParams.get('locale')).toBe('ItIT');
+  });
+
+  it('scopes credit limits by card pan when one is given', async () => {
+    const [client, fetchImpl] = await loggedIn(json({}), json({}));
+
+    await client.getCreditLimits('pan-guid');
+    expect(fetchImpl.mock.calls[2][0]).toBe(
+      'https://cardmanagement.production.avarda.com/api/v1/CreditLimit/GetCreditLimits?cornicheCardPan=pan-guid',
+    );
+
+    await client.getCreditLimits();
+    expect(fetchImpl.mock.calls[3][0]).toBe(
+      'https://cardmanagement.production.avarda.com/api/v1/CreditLimit/GetCreditLimits',
+    );
+  });
+
+  it('keys the card overview by pan, not by account id', async () => {
+    const [client, fetchImpl] = await loggedIn(json({}));
+
+    await client.getCardOverview('pan-guid', 10);
+    expect(fetchImpl.mock.calls[2][0]).toBe(
+      'https://cardmanagement.production.avarda.com/api/v3/CreditCard/overview/pan-guid?numberOfTransactions=10',
+    );
+  });
 });

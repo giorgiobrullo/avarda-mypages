@@ -1,6 +1,6 @@
 {
   "name": "avarda-mypages",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Typed client for the Avarda MyPages API (TF Bank Italy and other Avarda-serviced banks): password+SMS login, card transactions, and invoices.",
   "author": "giorgiobrullo",
   "license": "Apache-2.0",
